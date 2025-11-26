@@ -150,11 +150,6 @@ app.put("/collection/:collectionName/:id", async (req, res) => {
     }
 });
 
-// root route
-app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "index.html"));
-});
-
 // ERROR HANDLER
 app.use((err, req, res, next) => {
     console.error("Server Error:", err);
