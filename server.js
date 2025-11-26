@@ -60,3 +60,18 @@ app.post("/orders", async (req, res) => {
     await orders.insertOne(req.body);
     res.json({ success: true, message: "Order saved" });
 });
+// UPDATE LESSON SPACES
+app.put("/lessons/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+
+    const result = await lessons.updateOne(
+        { id: id },
+        { $set: req.body }
+    );
+
+    res.json({
+        success: result.modifiedCount === 1,
+        message: result.modifiedCount ? "Updated" : "Not Found"
+    });
+});
+
