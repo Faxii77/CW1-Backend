@@ -31,3 +31,15 @@ MongoClient.connect(uri)
         console.log("Connected to MongoDB Atlas");
     })
     .catch(err => console.error("MongoDB error:", err));
+
+// DYNAMIC COLLECTION PARAM HANDLER
+app.param("collectionName", (req, res, next, collectionName) => {
+    req.collection = db.collection(collectionName);
+    next();
+});
+
+// GET ALL LESSONS
+app.get("/lessons", async (req, res) => {
+    const data = await lessons.find({}).toArray();
+    res.json(data);
+});
