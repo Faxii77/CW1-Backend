@@ -14,16 +14,11 @@ app.use((req, res, next) => {
     next();
 });
 
-// CORS
-app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "*");
-    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
-    next();
-});
-
-// IMAGES
+// CORS + IMAGES
 app.use("/images", express.static(path.join(__dirname, "images")));
+
+const uri = "mongodb+srv://farhamoosa9_db_user:Farha2005%40@farha.tk5uuv4.mongodb.net/";
+let db, lessons, orders;
 
 // START SERVER
 const port = process.env.PORT || 3000;
