@@ -23,3 +23,11 @@ let db, lessons, orders;
 // START SERVER
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running on port ${port}`));
+MongoClient.connect(uri)
+    .then(client => {
+        db = client.db("webstore");
+        lessons = db.collection("lessons");
+        orders = db.collection("orders");
+        console.log("Connected to MongoDB Atlas");
+    })
+    .catch(err => console.error("MongoDB error:", err));
