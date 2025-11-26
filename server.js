@@ -1,0 +1,25 @@
+// REQUIRE MODULES
+const express = require("express");
+const cors = require("cors");
+const path = require("path");
+const fs = require("fs");
+const { MongoClient } = require("mongodb");
+
+const app = express();
+app.use(express.json());
+
+// LOGGER
+app.use((req, res, next) => {
+    console.log(`[API CALL] ${new Date().toISOString()} - ${req.method} ${req.originalUrl}`);
+    next();
+});
+
+app.use((req, res, next) => {
+    console.log("Request IP:", req.url);
+    console.log("Request date:", new Date());
+    next();
+});
+
+// START SERVER
+const port = process.env.PORT || 3000;
+app.listen(port, () => console.log(`Server running on port ${port}`));
