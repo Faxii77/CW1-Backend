@@ -55,3 +55,8 @@ app.get("/lessons", async (req, res) => {
     const data = await lessons.find({}).toArray();
     res.json(data);
 });
+// SAVE ORDER
+app.post("/orders", async (req, res) => {
+    await orders.insertOne(req.body);
+    res.json({ success: true, message: "Order saved" });
+});
