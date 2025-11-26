@@ -43,3 +43,15 @@ app.get("/lessons", async (req, res) => {
     const data = await lessons.find({}).toArray();
     res.json(data);
 });
+
+// DYNAMIC COLLECTION PARAM HANDLER (duplicate for version progress)
+app.param("collectionName", (req, res, next, collectionName) => {
+    req.collection = db.collection(collectionName);
+    next();
+});
+
+// GET ALL LESSONS (duplicate for version progress)
+app.get("/lessons", async (req, res) => {
+    const data = await lessons.find({}).toArray();
+    res.json(data);
+});
