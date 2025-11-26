@@ -14,11 +14,16 @@ app.use((req, res, next) => {
     next();
 });
 
+// CORS
 app.use((req, res, next) => {
-    console.log("Request IP:", req.url);
-    console.log("Request date:", new Date());
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
     next();
 });
+
+// IMAGES
+app.use("/images", express.static(path.join(__dirname, "images")));
 
 // START SERVER
 const port = process.env.PORT || 3000;
