@@ -75,3 +75,29 @@ app.put("/lessons/:id", async (req, res) => {
     });
 });
 
+// SEARCH LESSONS
+app.get("/search", async (req, res) => {
+    const q = req.query.q;
+    if (!q) return res.json([]);
+
+    const results = await lessons.find({
+        $or: [
+            { subject: { $regex: q, $options: "i" } },
+            { location: { $regex: q, $options: "i" } },
+            { $expr: { $regexMatch: { input: { $toString: "$price" }, regex: q, options: "i" } } },
+            { $expr: { $regexMatch: { input: { $toString: "$spaces" }, regex: q, options: "i" } } }
+        ]
+    }).toArray();
+
+    res.json(results);
+});
+
+// GET ANY COLLECTION
+app.get("/collection/:collectionName", (req, res) => {
+    req.collection.find({}).toArray((err, results) => res.send(results));
+});
+
+// POST ANY COLLECTION
+app.post("/collection/:collectionName", (req, res) => {
+    req.collection.insertOne(req.body, (err, result) => res.send(result));
+});
