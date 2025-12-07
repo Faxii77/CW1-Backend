@@ -1,31 +1,50 @@
-// REQUIRE MODULES
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
+const fs = require("fs");
 const { MongoClient } = require("mongodb");
 
 const app = express();
 
-// ENABLE CORS FIRST
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-// LOGGER
+// Request logger
 app.use((req, res, next) => {
     const time = new Date().toISOString();
     console.log(`[${time}] ${req.method} ${req.url}`);
     next();
 });
 
-// SERVE STATIC FILES 
-app.use(express.static(path.join(__dirname)));
+// Serve images statically
 app.use("/images", express.static(path.join(__dirname, "images")));
 
-// DATABASE CONNECTION
-const uri = "mongodb+srv://farhamoosa9_db_user:Farha2005%40@farha.tk5uuv4.mongodb.net/";
+// Handle image requests with fallback to placeholder
+app.get("/images/*", (req, res) => {
+    const requestedPath = req.path.replace(/^\/+/, "");
+    const filePath = path.join(__dirname, requestedPath);
+
+    fs.access(filePath, fs.constants.R_OK, (err) => {
+        if (!err) {
+            return res.sendFile(filePath);
+        }
+
+        const placeholder = path.join(__dirname, "images", "placeholder.png");
+        fs.access(placeholder, fs.constants.R_OK, (phErr) => {
+            if (!phErr) {
+                return res.sendFile(placeholder);
+            }
+            res.status(404).send("Image not found");
+        });
+    });
+});
+
+// MongoDB connection
+const uri = "mongodb+srv://farhamoosa9_db_user:Farha2005%40@farha.tk5uuv4.mongodb.net/"; 
 let db, lessons, orders;
 
-MongoClient.connect(uri)
+MongoClient.connect(uri, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(client => {
         db = client.db("webstore");
         lessons = db.collection("lessons");
@@ -37,26 +56,50 @@ MongoClient.connect(uri)
         process.exit(1);
     });
 
-// MIDDLEWARE: Check DB connection
+// Ensure database is ready before processing requests
 app.use((req, res, next) => {
-    if (!db) {
-        return res.status(503).json({ error: "Database not connected" });
+    if (!db && req.path.startsWith("/")) {
+        if (req.path.startsWith("/lessons") || req.path.startsWith("/search") || 
+            req.path.startsWith("/orders") || req.path.startsWith("/collection")) {
+            return res.status(503).json({ error: "Database not connected" });
+        }
     }
     next();
 });
 
-// GET ALL LESSONS
+// Convert relative image paths to absolute URLs
+function attachImageUrl(req, item) {
+    const host = `${req.protocol}://${req.get("host")}`;
+    
+    let imageField = item.image || item.icon;
+    
+    if (!imageField) {
+        return { ...item, image: `${host}/images/placeholder.png` };
+    }
+    
+    let filename = imageField.toString();
+    filename = filename.replace(/^\/+/, "");
+    if (!filename.startsWith("images/")) filename = `images/${filename}`;
+    
+    const result = { ...item, image: `${host}/${filename}` };
+    delete result.icon;
+    
+    return result;
+}
+
+// Get all lessons
 app.get("/lessons", async (req, res) => {
     try {
-        const data = await lessons.find({}).toArray();
-        res.json(data);
+        const docs = await lessons.find({}).toArray();
+        const mapped = docs.map(d => attachImageUrl(req, d));
+        res.json(mapped);
     } catch (err) {
         console.error("Error fetching lessons:", err);
         res.status(500).json({ error: "Failed to fetch lessons" });
     }
 });
 
-// SEARCH LESSONS
+// Search lessons by subject, location, price, or spaces
 app.get("/search", async (req, res) => {
     try {
         const q = req.query.q;
@@ -71,23 +114,22 @@ app.get("/search", async (req, res) => {
             ]
         }).toArray();
 
-        res.json(results);
+        const mapped = results.map(r => attachImageUrl(req, r));
+        res.json(mapped);
     } catch (err) {
         console.error("Search error:", err);
         res.status(500).json({ error: "Search failed" });
     }
 });
 
-// LESSON SPACES
+// Update lesson available spaces
 app.put("/lessons/:id", async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        
         const result = await lessons.updateOne(
             { id: id },
             { $set: { spaces: req.body.spaces } }
         );
-
         res.json({
             success: result.modifiedCount === 1,
             message: result.modifiedCount === 1 ? "Updated" : "Not Found"
@@ -98,14 +140,14 @@ app.put("/lessons/:id", async (req, res) => {
     }
 });
 
-// Saving the orders
+// Save new order
 app.post("/orders", async (req, res) => {
     try {
         const result = await orders.insertOne(req.body);
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             message: "Order saved successfully",
-            orderId: result.insertedId 
+            orderId: result.insertedId
         });
     } catch (err) {
         console.error("Order error:", err);
@@ -113,12 +155,13 @@ app.post("/orders", async (req, res) => {
     }
 });
 
-// DYNAMIC COLLECTION ROUTES 
+// Dynamic collection parameter
 app.param("collectionName", (req, res, next, collectionName) => {
     req.collection = db.collection(collectionName);
     next();
 });
 
+// Get all documents from a collection
 app.get("/collection/:collectionName", async (req, res) => {
     try {
         const results = await req.collection.find({}).toArray();
@@ -128,6 +171,7 @@ app.get("/collection/:collectionName", async (req, res) => {
     }
 });
 
+// Insert document into collection
 app.post("/collection/:collectionName", async (req, res) => {
     try {
         const result = await req.collection.insertOne(req.body);
@@ -137,6 +181,7 @@ app.post("/collection/:collectionName", async (req, res) => {
     }
 });
 
+// Update document in collection
 app.put("/collection/:collectionName/:id", async (req, res) => {
     try {
         const { ObjectId } = require("mongodb");
@@ -150,16 +195,15 @@ app.put("/collection/:collectionName/:id", async (req, res) => {
     }
 });
 
-// ERROR HANDLER
+// Global error handler
 app.use((err, req, res, next) => {
     console.error("Server Error:", err);
     res.status(500).json({ error: err.message });
 });
 
-// START SERVER
+// Start server
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`\n Server running on http://localhost:${port}`);
-    console.log(` Serving frontend files from: ${__dirname}`);
-    console.log(`  API endpoints available at: http://localhost:${port}/lessons\n`);
+    console.log(` API endpoints available at: http://localhost:${port}/lessons\n`);
 });
